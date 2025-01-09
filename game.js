@@ -1,32 +1,28 @@
-// Game board (2D array)
-let gameBoard = [
-    ['', '', 'T', '', ''],
-    ['M', '', '', 'T', ''],
-    ['', 'T', 'M', '', ''],
-    ['', '', '', 'M', ''],
-    ['', 'M', '', '', 'D']
-];
-
-// Player object
 let player = {
-    x: 0, // Starting row
-    y: 0, // Starting column
+    x: 0, // Starting position (row)
+    y: 0, // Starting position (column)
+    health: 100,
     inventory: [],
     move: function (direction) {
-        // Implement movement logic
+        if (gameOver) return; // Prevent movement if the game is over
+
         let newX = this.x;
         let newY = this.y;
 
+        // Handle movement based on direction
         if (direction === 'up' && this.x > 0) newX--;
         if (direction === 'down' && this.x < 4) newX++;
         if (direction === 'left' && this.y > 0) newY--;
         if (direction === 'right' && this.y < 4) newY++;
 
-        // Check for collisions with treasures or monsters
+        // Handle different types of cells (treasure, monster, door)
         if (gameBoard[newX][newY] === 'T') {
             this.collectTreasure(newX, newY);
-        } else if (gameBoard[newX][newY] === 'M') {
-            this.fightMonster();
+        } else if (gameBoard[newX][newY].startsWith('M:')) {
+            this.fightMonster(newX, newY);
+            return;
+        } else if (gameBoard[newX][newY] === 'D') {
+            this.exitDoor();
             return;
         }
 
@@ -37,24 +33,108 @@ let player = {
         updateGameMessages();
     },
     collectTreasure: function (x, y) {
-        // Collect the treasure and update the inventory
         this.inventory.push('Treasure');
-        gameBoard[x][y] = ''; // Remove the treasure from the board
-        updateGameMessages();
+        gameBoard[x][y] = ''; // Remove treasure from board
+
+        // Update game messages
+        const remainingTreasures = countRemainingTreasures();
+        document.getElementById('gameMessages').innerText = `Treasure collected! Treasures left: ${remainingTreasures}`;
+        updatePlayerStats();
         checkGameStatus();
     },
-    fightMonster: function () {
-        // Display Game Over when a monster is encountered
-        document.getElementById('gameMessages').innerText = 'Game Over! You landed on a monster.';
-        document.getElementById('startAgainButton').style.display = 'inline-block';
-        document.getElementById('gameBoard').style.display = 'none'; // Hide the game board
+    fightMonster: function (x, y) {
+        if (gameOver) return;
+
+        let monsterHealth = parseInt(gameBoard[x][y].split(':')[1]); // Get monster health
+
+        monsterHealth -= 45; // Deal 45 damage to the monster
+
+        if (monsterHealth <= 0) {
+            gameBoard[x][y] = ''; // Monster defeated, remove from board
+            document.getElementById('gameMessages').innerText = 'You defeated the monster!';
+        } else {
+            gameBoard[x][y] = `M:${monsterHealth}`; // Update monster health
+            document.getElementById('gameMessages').innerText = `You dealt 45 damage to the monster! Monster health left: ${monsterHealth}`;
+        }
+
+        this.health -= 25; // Decrease player health
+
+        if (this.health <= 0) {
+            this.health = 0;
+            document.getElementById('gameMessages').innerText = 'Game Over! You were defeated by the monster.';
+            document.getElementById('startAgainButton').style.display = 'inline-block';
+            document.getElementById('gameBoard').style.display = 'none';
+            gameOver = true;
+            updatePlayerStats();
+        } else {
+            updatePlayerStats();
+        }
+    },
+    exitDoor: function () {
+        if (gameOver) return;
+
+        // Check if all treasures have been collected
+        const remainingTreasures = countRemainingTreasures();
+        if (remainingTreasures === 0) {
+            document.getElementById('gameMessages').innerText = 'Victory! All treasures collected!';
+            document.getElementById('startAgainButton').style.display = 'inline-block';
+            document.getElementById('gameBoard').style.display = 'none';
+            gameOver = true;
+        } else {
+            document.getElementById('gameMessages').innerText = `You must collect all treasures before exiting the door! Remaining treasures: ${remainingTreasures}`;
+        }
     }
 };
 
-// Function to render the game board
+let gameOver = false;
+
+// Generate a random board with treasures and monsters
+function generateRandomBoard() {
+    let newBoard = [
+        ['', '', '', '', ''],
+        ['', '', '', '', ''],
+        ['', '', '', '', ''],
+        ['', '', '', '', ''],
+        ['', '', '', '', '']
+    ];
+
+    let availableCells = [];
+    for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+            availableCells.push({ x: i, y: j });
+        }
+    }
+
+    function pickRandomCell() {
+        const randomIndex = Math.floor(Math.random() * availableCells.length);
+        return availableCells.splice(randomIndex, 1)[0];
+    }
+
+    let treasuresToPlace = Math.floor(Math.random() * 2) + 2; // Randomly place 2 or 3 treasures
+    let treasuresPlaced = 0;
+    while (treasuresPlaced < treasuresToPlace) {
+        let cell = pickRandomCell();
+        newBoard[cell.x][cell.y] = 'T';
+        treasuresPlaced++;
+    }
+
+    let monstersPlaced = 0;
+    while (monstersPlaced < 2) {
+        let cell = pickRandomCell();
+        newBoard[cell.x][cell.y] = 'M:80'; // Monsters have 80 health
+        monstersPlaced++;
+    }
+
+    newBoard[4][4] = 'D'; // The exit door is placed at (4, 4)
+
+    return newBoard;
+}
+
+// Render the game board
 function renderBoard() {
     const boardElement = document.getElementById('gameBoard');
-    boardElement.innerHTML = '';
+    boardElement.innerHTML = ''; // Clear the existing board
+
     for (let i = 0; i < 5; i++) {
         const row = document.createElement('tr');
         for (let j = 0; j < 5; j++) {
@@ -65,9 +145,13 @@ function renderBoard() {
             } else if (gameBoard[i][j] === 'T') {
                 cell.classList.add('treasure');
                 cell.innerText = 'T';
-            } else if (gameBoard[i][j] === 'M') {
+            } else if (gameBoard[i][j].startsWith('M:')) {
+                let monsterHealth = gameBoard[i][j].split(':')[1];
                 cell.classList.add('monster');
-                cell.innerText = 'M';
+                cell.innerText = `M:${monsterHealth}`;
+            } else if (gameBoard[i][j] === 'D') {
+                cell.classList.add('door');
+                cell.innerText = 'D';
             }
             row.appendChild(cell);
         }
@@ -75,27 +159,25 @@ function renderBoard() {
     }
 }
 
-// Function to update game messages
+// Update the player stats (health, inventory)
+function updatePlayerStats() {
+    const playerStats = document.getElementById('playerStats');
+    playerStats.innerHTML =
+        `<p>Health: ${player.health}</p>
+        <p>Inventory: ${player.inventory.length} item(s)</p>`;
+}
+
+// Update the game messages (treasure collected, etc.)
 function updateGameMessages() {
     const gameMessages = document.getElementById('gameMessages');
-
-    // Calculate remaining treasures
     const remainingTreasures = countRemainingTreasures();
-
-    // Only display the treasure collected message if the player stepped on a treasure
     if (player.inventory.length > 0 && gameBoard[player.x][player.y] === '') {
         gameMessages.innerText = `Treasure collected! Treasures left: ${remainingTreasures}`;
     }
-
-    // If the player collects all the treasures, display the victory message
-    if (remainingTreasures === 0) {
-        gameMessages.innerText = 'Victory! All treasures collected!';
-        document.getElementById('startAgainButton').style.display = 'inline-block';  // Show button when game is over
-        document.getElementById('gameBoard').style.display = 'none'; // Hide the game board
-    }
+    checkGameStatus();
 }
 
-// Function to count remaining treasures on the board
+// Count the remaining treasures on the board
 function countRemainingTreasures() {
     let count = 0;
     for (let i = 0; i < gameBoard.length; i++) {
@@ -108,33 +190,42 @@ function countRemainingTreasures() {
     return count;
 }
 
-// Function to check game status
+// Count how many treasures need to be collected to win
+function countTreasuresToWin() {
+    let count = 0;
+    for (let i = 0; i < gameBoard.length; i++) {
+        for (let j = 0; j < gameBoard[i].length; j++) {
+            if (gameBoard[i][j] === 'T') {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
+// Check if the player has won or is able to exit the door
 function checkGameStatus() {
-    if (player.inventory.length === 3) {
+    const remainingTreasures = countRemainingTreasures();
+
+    // Check for victory if all treasures are collected and the player is at the door
+    if (remainingTreasures === 0 && gameBoard[player.x][player.y] === 'D') {
         document.getElementById('gameMessages').innerText = 'Victory! All treasures collected!';
         document.getElementById('startAgainButton').style.display = 'inline-block';
-        document.getElementById('gameBoard').style.display = 'none'; // Hide the game board
+        document.getElementById('gameBoard').style.display = 'none';
+        gameOver = true;
     }
 }
 
-// Function to handle player movement based on arrow keys
+// Handle player movement based on arrow keys
 function handleKeyPress(event) {
-    // Prevent default behavior (scrolling)
+    if (gameOver) return; // Don't handle key presses if the game is over
+
     event.preventDefault();
-
-    if (event.key === 'ArrowUp') {
-        player.move('up');
-    } else if (event.key === 'ArrowDown') {
-        player.move('down');
-    } else if (event.key === 'ArrowLeft') {
-        player.move('left');
-    } else if (event.key === 'ArrowRight') {
-        player.move('right');
-    }
+    if (event.key === 'ArrowUp') player.move('up');
+    if (event.key === 'ArrowDown') player.move('down');
+    if (event.key === 'ArrowLeft') player.move('left');
+    if (event.key === 'ArrowRight') player.move('right');
 }
-
-// Event listener for keypresses
-document.addEventListener('keydown', handleKeyPress);
 
 // Function to start a new game
 function startNewGame() {
@@ -142,55 +233,27 @@ function startNewGame() {
     player.x = 0;
     player.y = 0;
     player.inventory = [];
+    player.health = 100;
 
-    // Reinitialize the game board with random positions for treasures and monsters
+    // Generate a new game board with random treasures and monsters
     gameBoard = generateRandomBoard();
 
-    // Render the board
+    // Render the board and update player stats
     renderBoard();
+    updatePlayerStats();
 
-    // Show initial game messages
+    // Display the initial game message
     document.getElementById('gameMessages').innerText = 'Use the arrow keys to begin your quest!';
 
-    // Reset game status (in case it was ended with a victory or defeat)
-    document.getElementById('startAgainButton').style.display = 'none'; // Hide the button initially
+    // Reset game over status
+    gameOver = false;
+    document.getElementById('startAgainButton').style.display = 'none'; // Hide the Start Again button
     document.getElementById('gameBoard').style.display = 'block'; // Show the game board
 }
 
-// Function to generate a new random board
-function generateRandomBoard() {
-    let newBoard = [
-        ['', '', '', '', ''],
-        ['', '', '', '', ''],
-        ['', '', '', '', ''],
-        ['', '', '', '', ''],
-        ['', '', '', '', '']
-    ];
+// Event listener for key presses
+document.addEventListener('keydown', handleKeyPress);
 
-    // Place treasures
-    let treasuresPlaced = 0;
-    while (treasuresPlaced < 3) {
-        let randRow = Math.floor(Math.random() * 5);
-        let randCol = Math.floor(Math.random() * 5);
-        if (newBoard[randRow][randCol] === '') {
-            newBoard[randRow][randCol] = 'T';
-            treasuresPlaced++;
-        }
-    }
-
-    // Place monsters
-    let monstersPlaced = 0;
-    while (monstersPlaced < 2) {
-        let randRow = Math.floor(Math.random() * 5);
-        let randCol = Math.floor(Math.random() * 5);
-        if (newBoard[randRow][randCol] === '') {
-            newBoard[randRow][randCol] = 'M';
-            monstersPlaced++;
-        }
-    }
-
-    return newBoard;
-}
-
-// Initialize the game when the page loads
+// Initialize the game board and start the game when the page loads
+let gameBoard = generateRandomBoard();
 startNewGame();
