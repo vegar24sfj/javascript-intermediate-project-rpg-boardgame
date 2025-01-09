@@ -1,0 +1,82 @@
+/* Basic styling for the game container */
+body {
+    background-color: #222;
+    color: white;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    text-align: center;
+    padding-top: 60px;
+}
+
+h1 {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 3rem;
+    text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #ff00ff, 0 0 40px #ff00ff, 0 0 50px #ff00ff, 0 0 75px #ff00ff;
+    margin-bottom: 20px;
+}
+
+/* Styling for the game board container */
+#gameBoard {
+    margin-bottom: 20px;
+}
+
+/* Game board styling */
+table {
+    border-collapse: collapse;
+    background-color: #444;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+}
+
+td {
+    width: 80px;
+    height: 80px;
+    border: 1px solid #777;
+    text-align: center;
+    font-size: 1.5rem;
+}
+
+/* Styling for the player, treasure, monster */
+.player {
+    background-color: blue;
+    color: white;
+}
+
+.treasure {
+    background-color: gold;
+}
+
+.monster {
+    background-color: red;
+    color: white;
+}
+
+/* Game status and message */
+#gameMessages {
+    margin-top: 10px;
+    font-size: 1.2rem;
+}
+
+/* Start Again button styling */
+#startAgainButton {
+    background-color: #ff00ff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.2rem;
+    color: white;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: background-color 0.3s ease;
+    display: inline-block;
+}
+
+#startAgainButton:hover {
+    background-color: #ff66ff;
+}
